@@ -13,6 +13,11 @@ from kliff.models.parameter import Parameter
 from kliff.models.parameter_transform import ParameterTransform
 from kliff.neighbor import assemble_forces, assemble_stress
 
+##Aditya: remove this
+#import kimpy
+#from kimpy import neighlist as nl
+
+#Aditya: put this back
 try:
     import kimpy
     from kimpy import neighlist as nl

@@ -7,7 +7,7 @@ from loguru import logger
 from kliff.dataset.dataset import Configuration
 from kliff.models.model import Model
 from kliff.utils import length_equal
-
+from kliff import parallel
 
 class Calculator:
     """
@@ -36,6 +36,7 @@ class Calculator:
         use_energy: Union[List[bool], bool] = True,
         use_forces: Union[List[bool], bool] = True,
         use_stress: Union[List[bool], bool] = False,
+        nprocs: int = 1,
     ):
         """
         Create compute arguments for a collection of configurations.
@@ -62,6 +63,7 @@ class Calculator:
         self.use_energy = use_energy
         self.use_forces = use_forces
         self.use_stress = use_stress
+        self.nprocs = nprocs
 
         if isinstance(configs, Configuration):
             configs = [configs]
@@ -96,13 +98,22 @@ class Calculator:
         ca_class = self.model.get_compute_argument_class()
 
         self.compute_arguments = []
-        for conf, e, f, s in zip(configs, use_energy, use_forces, use_stress):
-            if self._is_kim_model():
-                kim_ca = self.model.create_a_kim_compute_argument()
-                ca = ca_class(kim_ca, conf, supported_species, infl_dist, e, f, s)
-            else:
-                ca = ca_class(conf, supported_species, infl_dist, e, f, s)
-            self.compute_arguments.append(ca)
+        if nprocs == 1:
+            for conf, e, f, s in zip(configs, use_energy, use_forces, use_stress):
+                if self._is_kim_model():
+                    kim_ca = self.model.create_a_kim_compute_argument()
+                    ca = ca_class(kim_ca, conf, supported_species, infl_dist, e, f, s)
+                else:
+                    ca = ca_class(conf, supported_species, infl_dist, e, f, s)
+                self.compute_arguments.append(ca)
+        else:
+             if self._is_kim_model():
+                 kim_ca = self.model.create_a_kim_compute_argument()
+                 par_arglist = [1,4,5,6]
+                 ca = parallel.parmap21(ca_class, kim_ca, configs, supported_species, infl_dist, use_energy, use_forces, use_stress, par_inargs=par_arglist, nprocs=nprocs)
+             else:
+                 par_arglist = [0,3,4,5]
+                 ca = parallel.parmap21(ca_class, configs, supported_species, infl_dist, use_energy, use_forces, use_stress, par_inargs=par_arglist , nprocs=nprocs)
 
         logger.info(f"Create calculator for {len(configs)} configurations.")
         return self.compute_arguments
